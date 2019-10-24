@@ -99,22 +99,72 @@ class Vacancy extends Model
             
     }
 
+//     public static function getIndexList(Request $request)
+//     {
+//         $only_active = (bool)$request->input('only_active');
+//         $vacancies = \App\Http\Resources\VacancyResourceCollection::make(Vacancy::all());
+        
+//         return $vacancies = $vacancies->filter(function ($value) use ($only_active) {
+//             if ($value->shouldShowOnlyActive($only_active)) {
+//                 if ($value->shouldShowStatusActive()){
+//                     return $value;
+//                 }
+//             } else {
+//                 return $value;
+//             }
+//         });
+//     }
     public static function getIndexList(Request $request)
     {
-        $only_active = (bool)$request->input('only_active');
-        $vacancies = \App\Http\Resources\VacancyResourceCollection::make(Vacancy::all());
-        
-        return $vacancies = $vacancies->filter(function ($value) use ($only_active) {
-            if ($value->shouldShowOnlyActive($only_active)) {
-                if ($value->shouldShowStatusActive()){
-                    return $value;
-                }
-            } else {
-                return $value;
-            }
-        });
-    }
+        $only_active = $request->input('only_active', null);
+        $active = $request->input('true',null) ?? true;
+        $all = $request->input('false',null) ?? true;
+        $workers_amount = $request->get('workers_amount', 0);
+        //$builder = self::query();
+        $w = self::query()
+        ->leftJoinSub('user_vacancy', function ($join) {
+            $join->on( 'user_vacancy.vacancy_id', '=', 'vacancies.id');
+        })
+        ->select('user_vacancy.vacancy_id', \DB::raw('user_vacancy.vacancy_id, COUNT(user_vacancy.vacancy_id) AS cv'))            
+        ->groupBy('user_vacancy.vacancy_id');    
+		$builder
+        ->select('vacancies.* AS v, w.cv', \DB::raw("IF(vacancies.workers_ammount > w.cv, 'active', 'closed') AS status"));
+        if ($only_active) {
+        $builder->where('vacancies.workers_ammount', '>', 'w.cv', 'active', 'closed');
+        $builder->where('true', $active);            
+        } else {
+            $builder->orWhere('false', $all);            
+        } 
+        $results = $builder->get()->appends(\Request::query());
 
+        return $results;       
+
+//     SELECT
+//     vacancies.*,
+//     w.c,
+//     IF(
+//         vacancies.workers_amount > w.c,
+//         'active',
+//         'closed'
+//     ) AS
+// status
+// FROM
+//     vacancies   
+// LEFT JOIN(
+//     SELECT
+//         vacancy_id,
+//         COUNT(vacancy_id) AS c
+//     FROM
+//         user_vacancy
+//     GROUP BY
+//         vacancy_id
+// ) AS w
+// ON
+//     w.vacancy_id = vacancies.id; 
+//WHERE vacancies.workers_amount > w.c,
+//         'active',
+//         'closed' 
+    }
     public static function getBook(Request $request)
     {
         $id = \Auth::user()->id;
