@@ -115,29 +115,36 @@ class Vacancy extends Model
 //         });
 //     }
     public static function getIndexList(Request $request)
+    {public static function getIndexList(Request $request)
     {
         $only_active = $request->input('only_active', null);
-        $active = $request->input('true',null) ?? true;
-        $all = $request->input('false',null) ?? true;
-        $workers_amount = $request->get('workers_amount', 0);
-        //$builder = self::query();
-        $w = self::query()
-        ->leftJoinSub('user_vacancy', function ($join) {
-            $join->on( 'user_vacancy.vacancy_id', '=', 'vacancies.id');
-        })
-        ->select('user_vacancy.vacancy_id', \DB::raw('user_vacancy.vacancy_id, COUNT(user_vacancy.vacancy_id) AS cv'))            
-        ->groupBy('user_vacancy.vacancy_id');    
-		$builder
-        ->select('vacancies.* AS v, w.cv', \DB::raw("IF(vacancies.workers_ammount > w.cv, 'active', 'closed') AS status"));
-        if ($only_active) {
-        $builder->where('vacancies.workers_ammount', '>', 'w.cv', 'active', 'closed');
-        $builder->where('true', $active);            
-        } else {
-            $builder->orWhere('false', $all);            
-        } 
-        $results = $builder->get()->appends(\Request::query());
+        $workers_amount = $request->get('workers_amount', 0); 	
+   
+       // MAX ASK AS w ???????
+     	$builder = self::query();
+	    $builder->select('vacancies.*', 'w.c', DB::raw("IF(
+	        vacancies.workers_amount > w.c, 
+	        'active',
+	        'closed'
+	    	) AS status"));
+        $subQuery = DB::query()
+    		->select('vacancy_id', DB::raw('COUNT(vacancy_id) AS c'))
+    		->from('user_vacancy')
+    		->groupBy('vacancy_id');
+        $builder->leftJoinSub($subQuery,'w', function ($query) {
+    		$query->on('w.vacancy_id', 'vacancies.id');
+    	});
+    	if($only_active == 'true'){     
+    		$builder->whereRaw("vacancies.workers_amount > w.c");
+    	}elseif($only_active == 'false'){
+	    	$builder->whereRaw("vacancies.workers_amount <= w.c");
+    	}
 
-        return $results;       
+        $results = $builder->get();
+
+
+        return $results;  
+    
 
 //     SELECT
 //     vacancies.*,
@@ -161,9 +168,10 @@ class Vacancy extends Model
 // ) AS w
 // ON
 //     w.vacancy_id = vacancies.id; 
-//WHERE vacancies.workers_amount > w.c,
-//         'active',
-//         'closed' 
+// -- WHERE
+// --     vacancies.workers_amount > w.c
+// --     OR
+// --     vacancies.workers_amount <= w.c    
     }
     public static function getBook(Request $request)
     {
