@@ -30,13 +30,14 @@ class OrganizationResource extends JsonResource
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
             'creator' => new UserResource($this->creator),
+            'workers' => VacancyResource::collection(Organization::getShowList($request, $this->resource)),
         ];
-        if (isset($this->_vacancies) and $this->_vacancies != 0) {
-            $data['vacancies'] = $this->vacancies;
-            if (isset($this->workers)) {
-                $data['workers'] = $this->workers;
-            }
-        }
+//         if (isset($this->_vacancies) and $this->_vacancies != 0) {
+//             $data['vacancies'] = $this->vacancies;
+//             if (isset($this->workers)) {
+//                 $data['workers'] = $this->workers;
+//             }
+//         }
         return $data;
     }
 }
